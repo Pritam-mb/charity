@@ -5,13 +5,14 @@ import type { AITags } from "@/lib/types";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { caption, ai_tags, quantity, area, owner_type, owner_id } = body as {
+    const { caption, ai_tags, quantity, area, owner_type, owner_id, photo_name } = body as {
       caption: string;
       ai_tags: AITags;
       quantity?: string;
       area: string;
       owner_type: "self" | "case_page";
       owner_id: string;
+      photo_name?: string;
     };
     if (!caption || !ai_tags || !area || !owner_id) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -23,6 +24,7 @@ export async function POST(req: NextRequest) {
       area,
       owner_type,
       owner_id,
+      photo_name,
     });
     return NextResponse.json({ need }, { status: 201 });
   } catch (e) {

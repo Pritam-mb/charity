@@ -4,9 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const LINKS = [
-  { href: "/", label: "Reel" },
-  { href: "/upload", label: "Post a need" },
-  { href: "/dashboard", label: "Snowflake HQ" },
+  { href: "/", label: "🌏 Feed" },
+  { href: "/upload", label: "📋 Post Need" },
+  { href: "/offers", label: "🎁 Offer Help" },
+  { href: "/volunteers", label: "🙋 Volunteers" },
+  { href: "/dashboard", label: "📊 Dashboard" },
+  { href: "/login", label: "🔐 Login" },
 ];
 
 export default function NavBar() {

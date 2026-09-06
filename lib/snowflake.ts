@@ -25,6 +25,10 @@ const env = () => ({
   role: process.env.SNOWFLAKE_ROLE,
 });
 
+function quoteIdentifier(name: string): string {
+  return `"${name.replaceAll('"', '""')}"`;
+}
+
 function loadSdk(): { createConnection: (o: object) => SFConnection } {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const sdk = require("snowflake-sdk");
@@ -37,6 +41,11 @@ function connect(): Promise<SFConnection> {
   if (!c.account || !c.username || !c.password) {
     return Promise.reject(new Error("Snowflake env vars missing"));
   }
+  if (!c.database || !c.schema) {
+    return Promise.reject(new Error("SNOWFLAKE_DATABASE and SNOWFLAKE_SCHEMA are required"));
+  }
+  const database = c.database;
+  const schema = c.schema;
   const sdk = loadSdk();
   return new Promise((resolve, reject) => {
     const conn = sdk.createConnection({
@@ -48,11 +57,24 @@ function connect(): Promise<SFConnection> {
       warehouse: c.warehouse,
       role: c.role,
     });
-    conn.connect((err: unknown) => {
+    conn.connect(async (err: unknown) => {
       if (err) reject(new Error(`Snowflake connect failed: ${String(err)}`));
-      else resolve(conn);
+      else {
+        try {
+          await run(conn, `USE DATABASE ${quoteIdentifier(database)}`);
+          await run(conn, `USE SCHEMA ${quoteIdentifier(schema)}`);
+          resolve(conn);
+        } catch (e) {
+          conn.destroy();
+          reject(e);
+        }
+      }
     });
   });
+}
+
+function summarizeSql(sqlText: string): string {
+  return sqlText.replace(/\s+/g, " ").trim().slice(0, 180);
 }
 
 function run(conn: SFConnection, sqlText: string, binds: unknown[] = []): Promise<Record<string, unknown>[]> {
@@ -61,7 +83,7 @@ function run(conn: SFConnection, sqlText: string, binds: unknown[] = []): Promis
       sqlText,
       binds,
       complete: (err, _stmt, rows) => {
-        if (err) reject(new Error(String(err)));
+        if (err) reject(new Error(`${summarizeSql(sqlText)} -> ${String(err)}`));
         else resolve(rows ?? []);
       },
     });

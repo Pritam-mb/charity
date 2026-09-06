@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { AnchorPoint, CasePage, NeedCard as NeedCardType, Pledge } from "@/lib/types";
+import type { AnchorPoint, CasePage, Comment, NeedCard as NeedCardType, Pledge, User } from "@/lib/types";
 import { AREAS, CATEGORIES } from "@/lib/categories";
 import NeedCard from "./need-card";
 
@@ -12,6 +12,10 @@ export default function Feed({
   anchorPoints,
   viewerId,
   shareCounts,
+  reactionCounts,
+  users,
+  commentsByNeed,
+  userVotes,
 }: {
   needs: NeedCardType[];
   pledges: Pledge[];
@@ -19,6 +23,10 @@ export default function Feed({
   anchorPoints: AnchorPoint[];
   viewerId: string;
   shareCounts: Record<string, number>;
+  reactionCounts: Record<string, number>;
+  users: User[];
+  commentsByNeed: Record<string, Comment[]>;
+  userVotes: Record<string, "up" | "down">;
 }) {
   const [cat, setCat] = useState<string>("all");
   const [area, setArea] = useState<string>("all");
@@ -40,12 +48,10 @@ export default function Feed({
 
   return (
     <div>
+      {/* Filter toolbar */}
       <div className="feed-toolbar">
         <div className="filter-row">
-          <button
-            className={`filter-btn ${cat === "all" ? "active" : ""}`}
-            onClick={() => setCat("all")}
-          >
+          <button className={`filter-btn ${cat === "all" ? "active" : ""}`} onClick={() => setCat("all")}>
             All
           </button>
           {CATEGORIES.map((c) => (
@@ -59,10 +65,7 @@ export default function Feed({
           ))}
         </div>
         <div className="filter-row">
-          <button
-            className={`filter-btn ${area === "all" ? "active" : ""}`}
-            onClick={() => setArea("all")}
-          >
+          <button className={`filter-btn ${area === "all" ? "active" : ""}`} onClick={() => setArea("all")}>
             Anywhere
           </button>
           {AREAS.map((a) => (
@@ -78,33 +81,30 @@ export default function Feed({
       </div>
 
       <div className="muted" style={{ marginBottom: 16, fontSize: 13 }}>
-        {filtered.length} needs · {openCount} open
+        {filtered.length} posts · {openCount} open
       </div>
 
-      {filtered.length === 0 && (
-        <div className="empty">No needs match these filters.</div>
-      )}
+      {filtered.length === 0 && <div className="empty">No needs match these filters.</div>}
 
-      {filtered.map((need) => (
-        <NeedCard
-          key={need.id}
-          need={need}
-          pledges={pledges.filter((p) => p.need_card_id === need.id)}
-          caseAlias={
-            need.owner_type === "case_page"
-              ? caseById.get(need.owner_id)?.alias
-              : undefined
-          }
-          caseArea={
-            need.owner_type === "case_page"
-              ? caseById.get(need.owner_id)?.broad_area
-              : undefined
-          }
-          anchorPoints={anchorPoints}
-          viewerId={viewerId}
-          shareCount={shareCounts[need.id] ?? 0}
-        />
-      ))}
+      {/* Instagram-style single column feed */}
+      <div className="insta-feed">
+        {filtered.map((need) => (
+          <NeedCard
+            key={need.id}
+            need={need}
+            pledges={pledges.filter((p) => p.need_card_id === need.id)}
+            caseAlias={need.owner_type === "case_page" ? caseById.get(need.owner_id)?.alias : undefined}
+            caseArea={need.owner_type === "case_page" ? caseById.get(need.owner_id)?.broad_area : undefined}
+            anchorPoints={anchorPoints}
+            viewerId={viewerId}
+            shareCount={shareCounts[need.id] ?? 0}
+            reactionCount={reactionCounts[need.id] ?? 0}
+            users={users}
+            comments={commentsByNeed[need.id] ?? []}
+            userVote={userVotes[need.id]}
+          />
+        ))}
+      </div>
     </div>
   );
 }

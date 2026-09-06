@@ -36,6 +36,18 @@ export default function Poster({
   const circleY = 14 + ((h >> 8) % 58);
   const lineTilt = ((h >> 16) % 160) - 80;
 
+  if (mediaKey && mediaKey.startsWith("data:image")) {
+    return (
+      <div style={{ width: "100%", aspectRatio: height, overflow: "hidden", borderRadius: 8, background: "#000" }}>
+        <img
+          src={mediaKey}
+          alt={caption ?? "Need image"}
+          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+        />
+      </div>
+    );
+  }
+
   return (
     <svg
       viewBox="0 0 320 140"

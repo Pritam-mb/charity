@@ -1,12 +1,12 @@
 import { getStore } from "@/lib/store";
-import { DEMO_VIEWER_ID } from "@/lib/demo";
+import { getCurrentUserId } from "@/lib/auth";
 import UploadForm from "@/components/upload-form";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function UploadPage() {
-  const store = await getStore();
+  const [store, viewerId] = await Promise.all([getStore(), getCurrentUserId()]);
   const cases = store.case_pages.filter((c) => c.status === "active");
 
   return (
@@ -17,7 +17,7 @@ export default async function UploadPage() {
         You review before publishing.
       </p>
 
-      <UploadForm cases={cases} viewerId={DEMO_VIEWER_ID} />
+      <UploadForm cases={cases} viewerId={viewerId} />
 
       <div className="card" style={{ marginTop: 16 }}>
         <div className="pledge-pool-title">No Case Page exists for the person yet?</div>

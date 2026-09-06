@@ -1,11 +1,12 @@
 import { getUser } from "@/lib/store";
-import { DEMO_STEWARD_ID } from "@/lib/demo";
+import { getCurrentUserId } from "@/lib/auth";
 import CaseForm from "@/components/case-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewCasePage() {
-  const steward = await getUser(DEMO_STEWARD_ID);
+  const viewerId = await getCurrentUserId();
+  const steward = await getUser(viewerId);
 
   return (
     <div style={{ maxWidth: 720, margin: "0 auto" }}>
@@ -15,7 +16,7 @@ export default async function NewCasePage() {
         need, update and fulfillment logs to this same page over time.
       </p>
 
-      <CaseForm stewardId={DEMO_STEWARD_ID} stewardName={steward?.display_name ?? "Demo steward"} />
+      <CaseForm stewardId={viewerId} stewardName={steward?.display_name ?? "Demo steward"} />
 
       <div className="card" style={{ marginTop: 16 }}>
         <div className="pledge-pool-title">Read this before opening</div>

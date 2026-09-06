@@ -6,6 +6,7 @@ import type {
   AnchorPointId,
   CasePage,
   CasePageId,
+  Comment,
   ConfirmationRecord,
   NeedCard,
   NeedCardId,
@@ -13,8 +14,10 @@ import type {
   PledgeId,
   StoreData,
   TimelineEntry,
+  SupportOffer,
   User,
   UserId,
+  Volunteer,
 } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -28,7 +31,7 @@ async function load(): Promise<StoreData> {
   cachePromise = (async () => {
     try {
       const raw = fs.readFileSync(DATA_FILE, "utf-8");
-      return JSON.parse(raw) as StoreData;
+      return normalizeStore(JSON.parse(raw) as StoreData);
     } catch {
       const seed = buildSeed();
       await persist(seed);
@@ -36,6 +39,39 @@ async function load(): Promise<StoreData> {
     }
   })();
   return cachePromise;
+}
+
+function normalizeStore(data: StoreData): StoreData {
+  data.reactions ??= [];
+  data.donations ??= [];
+  data.offers ??= [];
+  data.case_messages ??= [];
+  data.comments ??= [];
+  data.votes ??= [];
+  data.volunteers ??= [];
+  for (const user of data.users) {
+    user.role ??= user.id.includes("steward") ? "steward" : "citizen";
+    user.honor_badge ??= user.badge;
+  }
+  for (const need of data.needs) {
+    need.upvotes ??= 0;
+    need.downvotes ??= 0;
+  }
+  for (const page of data.case_pages) {
+    page.location_label ??= `${page.broad_area} community anchor point`;
+    page.map_query ??= `${page.broad_area}, Kolkata`;
+    page.handler_type ??= "citizen";
+    page.handler_name ??= page.stewards.length > 1 ? "Community steward group" : "Local steward";
+    page.bank_account_name ??= `${page.alias} Support Fund`;
+    page.bank_name ??= "Community verified bank";
+    page.bank_account_number ??= "XXXX-XXXX-1208";
+    page.bank_ifsc ??= "DEMO0001208";
+    page.upi_id ??= `${page.alias.toLowerCase().replaceAll(" ", "")}.support@upi`;
+    page.fundraiser_goal ??= 12000;
+    page.government_help ??= "Not recorded yet";
+    page.current_support ??= "Food, clothing and medicine updates are tracked by stewards.";
+  }
+  return data;
 }
 
 function persist(data: StoreData): Promise<void> {
@@ -116,14 +152,61 @@ export async function getShares() {
   return d.shares;
 }
 
+export async function getOffers() {
+  const d = await load();
+  return d.offers;
+}
+
 // ---------- mutations ----------
+
+export async function createUser(params: {
+  display_name: string;
+  role: "citizen" | "steward" | "ngo";
+  password?: string;
+}): Promise<User> {
+  const id = `u-${cuid()}`;
+  const user: User = {
+    id,
+    display_name: params.display_name,
+    role: params.role,
+    password: params.password,
+    badge: 0,
+    honor_badge: 0,
+    rank_points: 0,
+    created_at: new Date().toISOString(),
+  };
+  await mutate((d) => {
+    d.users.push(user);
+  });
+  return user;
+}
+
+export async function authenticateUser(display_name: string, password?: string): Promise<User | undefined> {
+  const d = await load();
+  const user = d.users.find(u => u.display_name.toLowerCase() === display_name.toLowerCase());
+  if (!user) return undefined;
+  if (user.password && user.password !== password) return undefined;
+  return user;
+}
 
 export async function createCase(data: {
   alias: string;
   broad_area: string;
+  location_label?: string;
+  map_query?: string;
   intro_text: string;
   steward_id: UserId;
   consent_clip: boolean;
+  handler_type?: "citizen" | "ngo" | "group" | "leader";
+  handler_name?: string;
+  bank_account_name?: string;
+  bank_name?: string;
+  bank_account_number?: string;
+  bank_ifsc?: string;
+  upi_id?: string;
+  fundraiser_goal?: number;
+  government_help?: string;
+  current_support?: string;
 }): Promise<CasePage> {
   const id = `c-${cuid()}`;
   const now = new Date().toISOString();
@@ -131,12 +214,24 @@ export async function createCase(data: {
     id,
     alias: data.alias,
     broad_area: data.broad_area,
+    location_label: data.location_label || `${data.broad_area} community anchor point`,
+    map_query: data.map_query || `${data.broad_area}, Kolkata`,
     intro_media: id,
     intro_text: data.intro_text,
     stewards: [data.steward_id],
+    handler_type: data.handler_type ?? "citizen",
+    handler_name: data.handler_name || "Local steward",
     status: "active",
     consent_clip: data.consent_clip,
     blur_public: true,
+    bank_account_name: data.bank_account_name,
+    bank_name: data.bank_name,
+    bank_account_number: data.bank_account_number,
+    bank_ifsc: data.bank_ifsc,
+    upi_id: data.upi_id,
+    fundraiser_goal: data.fundraiser_goal,
+    government_help: data.government_help,
+    current_support: data.current_support,
     created_at: now,
     last_update_at: now,
   };
@@ -194,10 +289,13 @@ export async function createNeed(params: {
   area: string;
   owner_type: "self" | "case_page";
   owner_id: UserId | CasePageId;
+  photo_name?: string;
+  tagged_org?: string;
 }): Promise<NeedCard> {
   const need: NeedCard = {
     id: `n-${cuid()}`,
-    media_key: `n-${cuid()}`,
+    media_key: params.photo_name || `n-${cuid()}`,
+    photo_name: params.photo_name,
     ai_tags: params.ai_tags,
     caption: params.caption,
     owner_type: params.owner_type,
@@ -205,6 +303,9 @@ export async function createNeed(params: {
     area: params.area,
     status: "open",
     quantity: params.quantity,
+    tagged_org: params.tagged_org,
+    upvotes: 0,
+    downvotes: 0,
     created_at: new Date().toISOString(),
   };
   await mutate((d) => {
@@ -350,9 +451,153 @@ export async function logShare(params: {
   });
 }
 
+export async function logReaction(params: {
+  need_card_id: NeedCardId;
+  user_id: UserId;
+  kind: "support" | "urgent" | "pray";
+}): Promise<void> {
+  await mutate((d) => {
+    d.reactions.push({
+      id: `r-${cuid()}`,
+      need_card_id: params.need_card_id,
+      user_id: params.user_id,
+      kind: params.kind,
+      at: new Date().toISOString(),
+    });
+  });
+}
+
+export async function addDonationLog(params: {
+  case_page_id: CasePageId;
+  donor_id: UserId;
+  donor_name: string;
+  amount: number;
+  method: "cash" | "bank" | "upi" | "other";
+  note: string;
+}): Promise<void> {
+  await mutate((d) => {
+    d.donations.push({
+      id: `d-${cuid()}`,
+      case_page_id: params.case_page_id,
+      donor_id: params.donor_id,
+      donor_name: params.donor_name,
+      amount: params.amount,
+      method: params.method,
+      note: params.note,
+      at: new Date().toISOString(),
+    });
+    const donor = d.users.find((u) => u.id === params.donor_id);
+    if (donor) {
+      donor.honor_badge = (donor.honor_badge ?? donor.badge) + 1;
+      donor.rank_points += 1;
+    }
+  });
+}
+
+export async function addCaseMessage(params: {
+  case_page_id: CasePageId;
+  author_id: UserId;
+  text: string;
+}): Promise<void> {
+  await mutate((d) => {
+    d.case_messages.push({
+      id: `m-${cuid()}`,
+      case_page_id: params.case_page_id,
+      author_id: params.author_id,
+      text: params.text,
+      created_at: new Date().toISOString(),
+    });
+  });
+}
+
+export async function createOffer(params: {
+  user_id: UserId;
+  title: string;
+  category: SupportOffer["category"];
+  area: string;
+  quantity: string;
+  contact: string;
+}): Promise<SupportOffer> {
+  const offer: SupportOffer = {
+    id: `o-${cuid()}`,
+    user_id: params.user_id,
+    title: params.title,
+    category: params.category,
+    area: params.area,
+    quantity: params.quantity,
+    contact: params.contact,
+    status: "available",
+    created_at: new Date().toISOString(),
+  };
+  await mutate((d) => {
+    d.offers.push(offer);
+  });
+  return offer;
+}
+
 export async function cancelPledge(pledgeId: PledgeId): Promise<void> {
   await mutate((d) => {
     const p = d.pledges.find((x) => x.id === pledgeId);
     if (p && (p.status === "pledged" || p.status === "handed_off")) p.status = "cancelled";
   });
+}
+
+export async function addComment(params: {
+  need_card_id: NeedCardId;
+  author_id: UserId;
+  text: string;
+}): Promise<Comment> {
+  const comment: Comment = {
+    id: `cm-${cuid()}`,
+    need_card_id: params.need_card_id,
+    author_id: params.author_id,
+    text: params.text,
+    created_at: new Date().toISOString(),
+  };
+  await mutate((d) => {
+    d.comments.push(comment);
+  });
+  return comment;
+}
+
+export async function addVote(params: {
+  need_card_id: NeedCardId;
+  user_id: UserId;
+  kind: "up" | "down";
+}): Promise<void> {
+  await mutate((d) => {
+    // Remove existing vote from this user on this need
+    const existing = d.votes.find(v => v.need_card_id === params.need_card_id && v.user_id === params.user_id);
+    const need = d.needs.find(n => n.id === params.need_card_id);
+    if (!need) return;
+    if (existing) {
+      if (existing.kind === "up") need.upvotes = Math.max(0, need.upvotes - 1);
+      else need.downvotes = Math.max(0, need.downvotes - 1);
+      d.votes = d.votes.filter(v => v.id !== existing.id);
+      if (existing.kind === params.kind) return; // toggle off
+    }
+    d.votes.push({ id: `v-${cuid()}`, need_card_id: params.need_card_id, user_id: params.user_id, kind: params.kind, at: new Date().toISOString() });
+    if (params.kind === "up") need.upvotes += 1;
+    else need.downvotes += 1;
+  });
+}
+
+export async function registerVolunteer(params: {
+  user_id: UserId;
+  name: string;
+  category: Volunteer["category"];
+  description: string;
+  area: string;
+  availability: string;
+  contact: string;
+}): Promise<Volunteer> {
+  const vol: Volunteer = {
+    id: `vol-${cuid()}`,
+    ...params,
+    created_at: new Date().toISOString(),
+  };
+  await mutate((d) => {
+    d.volunteers.push(vol);
+  });
+  return vol;
 }

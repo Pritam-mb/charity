@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CasePage, Urgency, Category } from "@/lib/types";
-import { autoTag } from "@/lib/auto-tag";
+import { autoTag, type TagProposal } from "@/lib/auto-tag";
 import { AREAS, CATEGORIES, URGENCIES } from "@/lib/categories";
 
 export default function UploadForm({
@@ -17,16 +17,60 @@ export default function UploadForm({
   const [caption, setCaption] = useState("");
   const [quantity, setQuantity] = useState("");
   const [area, setArea] = useState("");
+  const [photoName, setPhotoName] = useState("");
   const [ownerType, setOwnerType] = useState<"self" | "case_page">("self");
   const [caseId, setCaseId] = useState(cases[0]?.id ?? "");
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [taggedOrg, setTaggedOrg] = useState("");
 
-  const proposal = useMemo(() => autoTag(caption), [caption]);
+  // Instant local proposal as immediate feedback; server refines below.
+  const localProposal = useMemo(() => autoTag(caption), [caption]);
 
-  const [cat, setCat] = useState<Category>(proposal.tags.category);
-  const [itemType, setItemType] = useState(proposal.tags.item_type);
-  const [urgency, setUrgency] = useState<Urgency>(proposal.tags.urgency);
+  const [cat, setCat] = useState<Category>(localProposal.tags.category);
+  const [itemType, setItemType] = useState(localProposal.tags.item_type);
+  const [urgency, setUrgency] = useState<Urgency>(localProposal.tags.urgency);
+
+  const [serverProposal, setServerProposal] = useState<TagProposal | null>(null);
+  const [engine, setEngine] = useState<string | null>(null);
+  const [tagging, setTagging] = useState(false);
+  const [touched, setTouched] = useState(false);
+  const reqId = useRef(0);
+
+  useEffect(() => {
+    const id = ++reqId.current;
+    const t = setTimeout(async () => {
+      if (caption.trim().length < 4) {
+        setServerProposal(null);
+        setEngine(null);
+        setTagging(false);
+        return;
+      }
+      setTagging(true);
+      try {
+        const res = await fetch("/api/auto-tag", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ caption }),
+        });
+        if (!res.ok) return;
+        const j = await res.json();
+        if (reqId.current !== id) return; // stale response
+        setServerProposal(j.proposal);
+        setEngine(j.engine);
+        if (!touched) {
+          setCat(j.proposal.tags.category);
+          setItemType(j.proposal.tags.item_type);
+          setUrgency(j.proposal.tags.urgency);
+        }
+      } catch {
+        /* keep local proposal */
+      } finally {
+        if (reqId.current === id) setTagging(false);
+      }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [caption, touched]);
 
   const onCaptionChange = (value: string) => {
     setCaption(value);
@@ -34,7 +78,18 @@ export default function UploadForm({
     setCat(p.tags.category);
     setItemType(p.tags.item_type);
     setUrgency(p.tags.urgency);
+    setTouched(false);
   };
+
+  const displayed = serverProposal ?? localProposal;
+  const engineLabel =
+    engine === "google-ai"
+      ? "Google AI (Gemini) auto-tag"
+      : engine === "local"
+      ? "Local auto-tag"
+      : tagging
+      ? "Tagging…"
+      : "Local auto-tag";
 
   const canSubmit =
     caption.trim() && area && (ownerType === "self" || (ownerType === "case_page" && caseId && consent));
@@ -51,6 +106,8 @@ export default function UploadForm({
           caption: caption.trim(),
           quantity: quantity.trim() || "1 item",
           area,
+          photo_name: photoName,
+          tagged_org: taggedOrg.trim() || undefined,
           owner_type: ownerType,
           owner_id: ownerType === "self" ? viewerId : caseId,
           ai_tags: {
@@ -74,6 +131,38 @@ export default function UploadForm({
   return (
     <form className="card" onSubmit={submit}>
       <div className="field">
+        <label>Photo or video evidence</label>
+        <input
+          type="file"
+          accept="image/*,video/*"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = (evt) => {
+                setPhotoName(evt.target?.result as string);
+              };
+              reader.readAsDataURL(file);
+            } else {
+              setPhotoName("");
+            }
+          }}
+        />
+        {photoName && photoName.startsWith("data:") ? (
+          <div style={{ marginTop: 12 }}>
+            <img src={photoName} alt="Preview" style={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: 8, border: "1px solid var(--border)" }} />
+            <div className="faint" style={{ fontSize: 12, marginTop: 6 }}>
+              Image selected and ready for upload.
+            </div>
+          </div>
+        ) : photoName ? (
+          <div className="faint" style={{ fontSize: 12, marginTop: 6 }}>
+            Selected: {photoName}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="field">
         <label>What does the person need? (film/dictate style caption)</label>
         <textarea
           value={caption}
@@ -84,27 +173,34 @@ export default function UploadForm({
 
       <div className="propose-box">
         <div className="prop-title">
-          ✨ Local auto-tag (editable) — confidence {Math.round(proposal.confidence * 100)}%
+          ✨ {engineLabel} (editable) — confidence {Math.round(displayed.confidence * 100)}%
+          {touched && <span style={{ color: "var(--warn)" }}> · manual override</span>}
         </div>
         <div className="propose-row">
-          <select value={cat} onChange={(e) => setCat(e.target.value as Category)}>
+          <select
+            value={cat}
+            onChange={(e) => { setCat(e.target.value as Category); setTouched(true); }}
+          >
             {CATEGORIES.map((c) => (
               <option key={c.value} value={c.value}>{c.label}</option>
             ))}
           </select>
           <input
             value={itemType}
-            onChange={(e) => setItemType(e.target.value)}
+            onChange={(e) => { setItemType(e.target.value); setTouched(true); }}
             placeholder="Item type"
             style={{ flex: 1 }}
           />
-          <select value={urgency} onChange={(e) => setUrgency(e.target.value as Urgency)}>
+          <select
+            value={urgency}
+            onChange={(e) => { setUrgency(e.target.value as Urgency); setTouched(true); }}
+          >
             {URGENCIES.map((u) => (
               <option key={u.value} value={u.value}>{u.label}</option>
             ))}
           </select>
         </div>
-        <div className="faint">{proposal.notes}</div>
+        <div className="faint">{displayed.notes}</div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
@@ -125,6 +221,17 @@ export default function UploadForm({
             placeholder="e.g. 1 week's ration"
           />
         </div>
+      </div>
+
+      <div className="field">
+        <label>@ Tag an Organisation (optional)</label>
+        <input
+          type="text"
+          value={taggedOrg}
+          onChange={(e) => setTaggedOrg(e.target.value)}
+          placeholder="E.g. Bal Raksha, Red Cross, SOS Children's Village"
+        />
+        <div className="faint" style={{ fontSize: 12, marginTop: 4 }}>Tag an NGO or organisation to notify them about this need.</div>
       </div>
 
       <div className="field">

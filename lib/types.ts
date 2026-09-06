@@ -6,6 +6,8 @@ export type AnchorPointId = string;
 export type ConfirmationRecordId = string;
 export type TimelineEntryId = string;
 
+export type UserRole = "citizen" | "volunteer" | "steward" | "ngo" | "leader" | "teacher";
+
 export type Category =
   | "shelter"
   | "clothing"
@@ -24,8 +26,11 @@ export type PledgeStatus = "pledged" | "handed_off" | "confirmed" | "cancelled";
 export interface User {
   id: UserId;
   display_name: string;
+  role?: UserRole;
   badge: number;
+  honor_badge?: number;
   rank_points: number;
+  password?: string;
   created_at: string;
 }
 
@@ -33,12 +38,24 @@ export interface CasePage {
   id: CasePageId;
   alias: string;
   broad_area: string;
-  intro_media: string; // poster key, maps to deterministic SVG
+  location_label?: string;
+  map_query?: string;
+  intro_media: string;
   intro_text: string;
   stewards: UserId[];
+  handler_type?: "citizen" | "ngo" | "group" | "leader";
+  handler_name?: string;
   status: "active" | "inactive" | "frozen";
-  consent_clip: boolean; // recorded verbal consent captured → true
+  consent_clip: boolean;
   blur_public: boolean;
+  bank_account_name?: string;
+  bank_name?: string;
+  bank_account_number?: string;
+  bank_ifsc?: string;
+  upi_id?: string;
+  fundraiser_goal?: number;
+  government_help?: string;
+  current_support?: string;
   created_at: string;
   last_update_at: string;
 }
@@ -61,7 +78,8 @@ export interface AITags {
 
 export interface NeedCard {
   id: NeedCardId;
-  media_key: string; // deterministic poster key
+  media_key: string;
+  photo_name?: string;
   ai_tags: AITags;
   caption: string;
   owner_type: "self" | "case_page";
@@ -69,6 +87,37 @@ export interface NeedCard {
   area: string;
   status: NeedStatus;
   quantity: string;
+  tagged_org?: string;
+  upvotes: number;
+  downvotes: number;
+  created_at: string;
+}
+
+export interface Comment {
+  id: string;
+  need_card_id: NeedCardId;
+  author_id: UserId;
+  text: string;
+  created_at: string;
+}
+
+export interface Vote {
+  id: string;
+  need_card_id: NeedCardId;
+  user_id: UserId;
+  kind: "up" | "down";
+  at: string;
+}
+
+export interface Volunteer {
+  id: string;
+  user_id: UserId;
+  name: string;
+  category: Category | "time" | "service" | "teaching" | "skills";
+  description: string;
+  area: string;
+  availability: string;
+  contact: string;
   created_at: string;
 }
 
@@ -110,6 +159,45 @@ export interface ShareEvent {
   at: string;
 }
 
+export interface ReactionEvent {
+  id: string;
+  need_card_id: NeedCardId;
+  user_id: UserId;
+  kind: "support" | "urgent" | "pray";
+  at: string;
+}
+
+export interface DonationLog {
+  id: string;
+  case_page_id: CasePageId;
+  donor_id: UserId;
+  donor_name: string;
+  amount: number;
+  method: "cash" | "bank" | "upi" | "other";
+  note: string;
+  at: string;
+}
+
+export interface SupportOffer {
+  id: string;
+  user_id: UserId;
+  title: string;
+  category: Category | "time" | "service";
+  area: string;
+  quantity: string;
+  contact: string;
+  status: "available" | "matched";
+  created_at: string;
+}
+
+export interface CaseMessage {
+  id: string;
+  case_page_id: CasePageId;
+  author_id: UserId;
+  text: string;
+  created_at: string;
+}
+
 export interface StoreData {
   users: User[];
   case_pages: CasePage[];
@@ -119,4 +207,11 @@ export interface StoreData {
   anchor_points: AnchorPoint[];
   confirmations: ConfirmationRecord[];
   shares: ShareEvent[];
+  reactions: ReactionEvent[];
+  donations: DonationLog[];
+  offers: SupportOffer[];
+  case_messages: CaseMessage[];
+  comments: Comment[];
+  votes: Vote[];
+  volunteers: Volunteer[];
 }
