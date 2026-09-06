@@ -10,126 +10,101 @@ export default function NeedCardComments({
   comments,
   users,
   viewerId,
-  upvotes,
-  downvotes,
-  userVote,
+  isOpen = false,
 }: {
   needId: string;
   comments: Comment[];
   users: User[];
   viewerId: string;
-  upvotes: number;
-  downvotes: number;
-  userVote?: "up" | "down";
+  isOpen?: boolean;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const [localUpvotes, setLocalUpvotes] = useState(upvotes);
-  const [localDownvotes, setLocalDownvotes] = useState(downvotes);
-  const [myVote, setMyVote] = useState<"up" | "down" | undefined>(userVote);
-
-  const vote = async (kind: "up" | "down") => {
-    const prev = myVote;
-    // Optimistic
-    if (myVote === kind) {
-      setMyVote(undefined);
-      kind === "up" ? setLocalUpvotes(v => v - 1) : setLocalDownvotes(v => v - 1);
-    } else {
-      if (myVote === "up") setLocalUpvotes(v => v - 1);
-      if (myVote === "down") setLocalDownvotes(v => v - 1);
-      setMyVote(kind);
-      kind === "up" ? setLocalUpvotes(v => v + 1) : setLocalDownvotes(v => v + 1);
-    }
-    const res = await fetch(`/api/needs/${needId}/vote`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind }),
-    });
-    if (!res.ok) {
-      // Revert
-      setMyVote(prev);
-      setLocalUpvotes(upvotes);
-      setLocalDownvotes(downvotes);
-    }
-    router.refresh();
-  };
+  const [pendingComments, setPendingComments] = useState<Comment[]>([]);
 
   const submitComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!text.trim()) return;
+    const commentText = text.trim();
+    if (!commentText) return;
     setBusy(true);
+
+    const tempComment: Comment = {
+      id: `c-temp-${Date.now()}`,
+      need_card_id: needId,
+      author_id: viewerId,
+      text: commentText,
+      created_at: new Date().toISOString(),
+    };
+
+    setPendingComments((prev) => [...prev, tempComment]);
+    setText("");
+
     try {
       await fetch(`/api/needs/${needId}/comment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text: commentText }),
       });
-      setText("");
       router.refresh();
+    } catch {
+      // Revert if failed
+      setPendingComments((prev) => prev.filter((c) => c.id !== tempComment.id));
     } finally {
       setBusy(false);
     }
   };
 
-  return (
-    <div className="card-interactions">
-      {/* Vote / Comment row */}
-      <div className="interaction-bar">
-        <button
-          className={`vote-btn ${myVote === "up" ? "voted-up" : ""}`}
-          onClick={() => vote("up")}
-          title="Upvote"
-        >
-          ▲ <span>{localUpvotes}</span>
-        </button>
-        <button
-          className={`vote-btn ${myVote === "down" ? "voted-down" : ""}`}
-          onClick={() => vote("down")}
-          title="Downvote"
-        >
-          ▼ <span>{localDownvotes}</span>
-        </button>
-        <button className="comment-toggle-btn" onClick={() => setOpen(o => !o)}>
-          💬 {comments.length} {comments.length === 1 ? "Comment" : "Comments"}
-        </button>
-      </div>
+  if (!isOpen) return null;
 
-      {open && (
-        <div className="comment-section">
-          {comments.map(c => {
-            const author = users.find(u => u.id === c.author_id);
-            return (
-              <div key={c.id} className="comment-item">
-                <div className="comment-avatar">
-                  {(author?.display_name ?? "?").slice(0, 1).toUpperCase()}
-                </div>
-                <div className="comment-body">
-                  <div className="comment-author">
-                    {author?.display_name ?? "Someone"}
-                    {author?.honor_badge ? <span className="badge-pill" style={{ marginLeft: 6 }}>🏆 x{author.honor_badge}</span> : null}
-                    <span className="comment-time">{timeAgo(c.created_at)}</span>
-                  </div>
-                  <p className="comment-text">{c.text}</p>
-                </div>
+  const displayedComments = [
+    ...comments,
+    ...pendingComments.filter((p) => !comments.some((c) => c.id === p.id || c.text === p.text)),
+  ];
+
+  return (
+    <div className="reddit-comments-block">
+      <form onSubmit={submitComment} className="reddit-comment-composer">
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="What are your thoughts or local updates?"
+          required
+        />
+        <button type="submit" disabled={busy || !text.trim()}>
+          {busy ? "Posting..." : "Comment"}
+        </button>
+      </form>
+
+      <div style={{ marginTop: 12 }}>
+        {displayedComments.map((c) => {
+          const author = users.find((u) => u.id === c.author_id);
+          const authorInitial = (author?.display_name ?? "U").slice(0, 1).toUpperCase();
+          return (
+            <div key={c.id} className="reddit-comment-thread">
+              <div className="reddit-comment-avatar">
+                {authorInitial}
               </div>
-            );
-          })}
-          {comments.length === 0 && <div className="faint" style={{ fontSize: 13, padding: "8px 0" }}>Be the first to comment.</div>}
-          <form onSubmit={submitComment} className="comment-form">
-            <input
-              value={text}
-              onChange={e => setText(e.target.value)}
-              placeholder="Write a comment…"
-              required
-            />
-            <button className="btn btn-primary btn-sm" type="submit" disabled={busy}>
-              {busy ? "…" : "Post"}
-            </button>
-          </form>
-        </div>
-      )}
+              <div className="reddit-comment-main">
+                <div className="reddit-comment-meta">
+                  <span>u/{author?.display_name ?? "community_member"}</span>
+                  {author?.honor_badge ? (
+                    <span className="reddit-author-badge">Honor x{author.honor_badge}</span>
+                  ) : null}
+                  <span className="faint">•</span>
+                  <span className="reddit-post-time">{timeAgo(c.created_at)}</span>
+                </div>
+                <p className="reddit-comment-text">{c.text}</p>
+              </div>
+            </div>
+          );
+        })}
+        {displayedComments.length === 0 && (
+          <div className="faint" style={{ fontSize: 13, padding: "12px 0", textAlign: "center" }}>
+            No comments yet. Be the first to start the discussion!
+          </div>
+        )}
+      </div>
     </div>
   );
 }

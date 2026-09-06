@@ -10,10 +10,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
+    const allowedRoles = ["citizen", "steward", "ngo"] as const;
+    type SignupRole = (typeof allowedRoles)[number];
+    const validRole: SignupRole = allowedRoles.includes(role) ? role : "citizen";
+
     const user = await createUser({
       display_name: username,
       password: password,
-      role: role as any,
+      role: validRole,
     });
 
     const jar = await cookies();

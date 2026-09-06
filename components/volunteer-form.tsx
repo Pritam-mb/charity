@@ -4,14 +4,14 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 const CATEGORIES = [
-  { value: "food", label: "🍱 Food" },
-  { value: "medical", label: "🏥 Medical" },
-  { value: "education", label: "📚 Education" },
-  { value: "teaching", label: "📖 Teaching" },
-  { value: "clothing", label: "👕 Clothing" },
-  { value: "shelter", label: "🏠 Shelter" },
-  { value: "time", label: "⏰ Time / Labour" },
-  { value: "skills", label: "💡 Skills / Services" },
+  { value: "food", label: "Food" },
+  { value: "medical", label: "Medical" },
+  { value: "education", label: "Education" },
+  { value: "teaching", label: "Teaching" },
+  { value: "clothing", label: "Clothing" },
+  { value: "shelter", label: "Shelter" },
+  { value: "time", label: "Time / Labour" },
+  { value: "skills", label: "Skills / Services" },
 ];
 
 export default function VolunteerForm({ userId }: { userId: string }) {
@@ -49,7 +49,7 @@ export default function VolunteerForm({ userId }: { userId: string }) {
   if (!open) {
     return (
       <button className="btn btn-primary" style={{ fontSize: 15 }} onClick={() => setOpen(true)}>
-        🙋 Register as a Volunteer
+        Register as a Volunteer
       </button>
     );
   }
@@ -79,7 +79,7 @@ export default function VolunteerForm({ userId }: { userId: string }) {
           </div>
           <div className="field" style={{ marginBottom: 0 }}>
             <label>Availability</label>
-            <input required value={availability} onChange={e => setAvailability(e.target.value)} placeholder="E.g. Every Sunday 9–11 AM" />
+            <input required value={availability} onChange={e => setAvailability(e.target.value)} placeholder="E.g. Every Sunday 9-11 AM" />
           </div>
         </div>
         <div className="field" style={{ marginBottom: 0 }}>
@@ -88,7 +88,7 @@ export default function VolunteerForm({ userId }: { userId: string }) {
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
           <button className="btn btn-primary" type="submit" disabled={busy}>
-            {busy ? "Registering…" : "Register"}
+            {busy ? "Registering..." : "Register"}
           </button>
           <button className="btn btn-ghost" type="button" onClick={() => setOpen(false)}>Cancel</button>
         </div>

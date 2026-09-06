@@ -24,7 +24,7 @@ export default function SyncButton() {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
       <button className="btn btn-ghost btn-sm" onClick={sync} disabled={busy}>
-        {busy ? "Syncing…" : "↻ Sync store → Snowflake"}
+        {busy ? "Syncing..." : "Sync store to Snowflake"}
       </button>
       {msg && <span className="faint" style={{ fontSize: 12 }}>{msg}</span>}
     </div>

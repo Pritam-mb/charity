@@ -43,14 +43,14 @@ export default function OfferForm({ userId }: { userId: string }) {
   if (!open) {
     return (
       <button className="btn btn-primary" onClick={() => setOpen(true)}>
-        + Create an Offer
+        + Create an Offering
       </button>
     );
   }
 
   return (
     <div className="card">
-      <h2 style={{ marginTop: 0 }}>Create a Support Offer</h2>
+      <h2 style={{ marginTop: 0 }}>Create a Support Offering</h2>
       <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div className="field">
           <label>What are you offering?</label>
@@ -58,7 +58,7 @@ export default function OfferForm({ userId }: { userId: string }) {
         </div>
         <div className="field">
           <label>Category</label>
-          <select value={category} onChange={(e) => setCategory(e.target.value as any)}>
+          <select value={category} onChange={(e) => setCategory(e.target.value as Category | "time" | "service")}>
             <option value="food">Food</option>
             <option value="clothing">Clothing</option>
             <option value="medical">Medical</option>
@@ -82,7 +82,7 @@ export default function OfferForm({ userId }: { userId: string }) {
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
           <button className="btn btn-primary" disabled={busy} type="submit">
-            Post Offer
+            Post Offering
           </button>
           <button className="btn" type="button" onClick={() => setOpen(false)}>
             Cancel

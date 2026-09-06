@@ -18,7 +18,7 @@ export default async function DashboardPage() {
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 800 }}>Snowflake HQ</h1>
           <p className="muted" style={{ fontSize: 14, marginTop: 4 }}>
-            Where unfulfilled needs and steward health become visible — “here&apos;s what the data shows.”
+            Where unfulfilled needs and steward health become visible: here&apos;s what the data shows.
           </p>
         </div>
         <SyncButton />
@@ -26,12 +26,12 @@ export default async function DashboardPage() {
 
       <div className={`banner ${snowLive ? "snow" : "local"}`}>
         {snowLive ? (
-          <>❄️ Live data — reading aggregates from Snowflake.</>
+          <>Live data - reading aggregates from Snowflake.</>
         ) : (
           <>
-            ⚠️ Snowflake unreachable — showing the same metrics computed locally so the demo
+            Snowflake unreachable - showing the same metrics computed locally so the demo
             never breaks. {m.error ? <span className="faint">({m.error})</span> : null} Set the
-            SNOWFLAKE_* env vars (account hostname must be reachable) then hit “Sync store → Snowflake”.
+            SNOWFLAKE_* env vars (account hostname must be reachable) then use Sync store to Snowflake.
           </>
         )}
       </div>
@@ -137,12 +137,12 @@ export default async function DashboardPage() {
 
       <div className="grid-2">
         <div className="card">
-          <div className="pledge-pool-title">Steward health — stale case pages (no update in 3+ days)</div>
+          <div className="pledge-pool-title">Steward health - stale case pages (no update in 3+ days)</div>
           {m.stalePages.length === 0 && <p className="muted" style={{ fontSize: 13 }}>No stale pages. Every case is being maintained.</p>}
           {m.stalePages.map((p) => (
             <div className="pledge-item" key={p.id}>
               <Link href={`/cases/${p.id}`} style={{ fontWeight: 700 }}>{p.alias}</Link>
-              <span className="pledge-giver">{p.area} · {p.stewards} steward{p.stewards === 1 ? "" : "s"}</span>
+              <span className="pledge-giver">{p.area} - {p.stewards} steward{p.stewards === 1 ? "" : "s"}</span>
               <span className="pledge-state chip" style={{ color: "var(--danger)", borderColor: "rgba(226,81,81,0.5)" }}>
                 {p.days_stale}d without update
               </span>

@@ -40,33 +40,91 @@ export default function StewardConfirmPanel({
   };
 
   return (
-    <div className="card" style={{ marginBottom: 12 }}>
-      <div className="pledge-pool-title" style={{ marginBottom: 10 }}>
-        Confirmations awaiting the steward (two-party rule — giver must have marked handed off)
+    <div className="steward-panel-container">
+      <div className="steward-subhead">
+        <span className="steward-subhead-title">Handoff Verifications</span>
+        <span
+          className="chip"
+          style={{
+            fontSize: 11,
+            color: readyToConfirm.length > 0 ? "var(--reddit-orange)" : "var(--reddit-green)",
+            borderColor: readyToConfirm.length > 0 ? "rgba(255,69,0,0.35)" : "rgba(0,166,126,0.35)",
+            padding: "2px 8px",
+          }}
+        >
+          {readyToConfirm.length} awaiting
+        </span>
       </div>
-      {readyToConfirm.length === 0 && (
-        <p className="muted" style={{ fontSize: 13 }}>
-          Nothing awaiting confirmation right now. Pledges show up here once a giver marks them handed-off.
-        </p>
-      )}
-      {readyToConfirm.map((p) => (
-        <div className="pledge-item" key={p.id}>
-          <span className="pledge-portion">{p.portion}</span>
-          <span className="pledge-giver">for a need — {needTitle(p.need_card_id)}</span>
-          <span className="pledge-state chip" style={{ color: "var(--warn)", borderColor: "rgba(212,162,51,0.5)" }}>
-            handed off
-          </span>
-          <button
-            className="btn btn-good btn-sm"
-            disabled={busy === p.id}
-            onClick={() => confirm(p, p.need_card_id)}
+      <p className="steward-panel-desc">
+        Two-party rule: Giver marks handed-off, then steward verifies receipt to mint honor points.
+      </p>
+
+      {readyToConfirm.length === 0 ? (
+        <div className="steward-empty-state">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="var(--reddit-green)"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
-            ✓ Confirm received — giver earns badge
-          </button>
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            <polyline points="9 12 11 14 15 10" />
+          </svg>
+          <span>All pledges verified. Nothing awaiting confirmation.</span>
         </div>
-      ))}
-      <div className="faint" style={{ fontSize: 12, marginTop: 8 }}>
-        Every confirmation is logged to the immutable record and reflected in the Snowflake HQ dashboard.
+      ) : (
+        <div className="steward-pledge-list">
+          {readyToConfirm.map((p) => (
+            <div className="steward-pledge-card" key={p.id}>
+              <div className="steward-pledge-top">
+                <span className="steward-pledge-title">{needTitle(p.need_card_id)}</span>
+                <span
+                  className="chip"
+                  style={{
+                    fontSize: 10.5,
+                    color: "var(--reddit-warn)",
+                    borderColor: "rgba(245,158,11,0.35)",
+                    padding: "1px 6px",
+                  }}
+                >
+                  Handed off
+                </span>
+              </div>
+              <div className="steward-pledge-details">
+                Portion: <strong>{p.portion}</strong>
+              </div>
+              <button
+                className="steward-confirm-btn"
+                disabled={busy === p.id}
+                onClick={() => confirm(p, p.need_card_id)}
+              >
+                {busy === p.id ? "Confirming..." : "✓ Confirm Received & Award Honor"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="steward-audit-footnote">
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="16" x2="12" y2="12" />
+          <line x1="12" y1="8" x2="12.01" y2="8" />
+        </svg>
+        <span>Logged to immutable ledger & Snowflake telemetry</span>
       </div>
     </div>
   );

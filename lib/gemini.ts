@@ -3,7 +3,7 @@ import { autoTag, type TagProposal } from "./auto-tag";
 import type { AITags } from "./types";
 
 /**
- * Real Google AI tagging (Gemini). Lazy client — if GOOGLE_AI_API_KEY is
+ * Real Google AI tagging (Gemini). Lazy client - if GOOGLE_AI_API_KEY is
  * absent, or the call fails, we fall back to the local keyword tagger
  * (lib/auto-tag.ts) so the upload flow never breaks. Steward still edits
  * before publishing (problems.md #10).
@@ -85,7 +85,7 @@ export async function generateTags(caption: string): Promise<TagProposal> {
         urgency,
       },
       confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.9,
-      notes: parsed.notes || "AI-generated tags — review before publishing.",
+      notes: parsed.notes || "AI-generated tags - review before publishing.",
     };
   } catch (e) {
     // Fall back to local tagging on any API failure; surface the reason.

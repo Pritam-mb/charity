@@ -54,7 +54,7 @@ export default function MapView({
   // Need to fix leaflet default icon issue in React
   useEffect(() => {
     import("leaflet").then((L) => {
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
         iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",

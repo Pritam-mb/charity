@@ -34,8 +34,9 @@ async function load(): Promise<StoreData> {
       return normalizeStore(JSON.parse(raw) as StoreData);
     } catch {
       const seed = buildSeed();
-      await persist(seed);
-      return seed;
+      const normalized = normalizeStore(seed);
+      await persist(normalized);
+      return normalized;
     }
   })();
   return cachePromise;
@@ -43,7 +44,9 @@ async function load(): Promise<StoreData> {
 
 function normalizeStore(data: StoreData): StoreData {
   data.reactions ??= [];
-  data.donations ??= [];
+  if (!data.donations || data.donations.length === 0) {
+    data.donations = buildSeed().donations;
+  }
   data.offers ??= [];
   data.case_messages ??= [];
   data.comments ??= [];
@@ -52,6 +55,9 @@ function normalizeStore(data: StoreData): StoreData {
   for (const user of data.users) {
     user.role ??= user.id.includes("steward") ? "steward" : "citizen";
     user.honor_badge ??= user.badge;
+    if (user.display_name) {
+      user.display_name = user.display_name.replace(/\s*\(Demo\)/gi, "").trim() || "You";
+    }
   }
   for (const need of data.needs) {
     need.upvotes ??= 0;
@@ -103,6 +109,26 @@ export async function getStore(): Promise<StoreData> {
 export async function getUser(id: UserId): Promise<User | undefined> {
   const d = await load();
   return d.users.find((u) => u.id === id);
+}
+
+export async function updateUser(
+  id: UserId,
+  updates: Partial<Pick<User, "display_name" | "role" | "password" | "bio" | "area" | "contact">>
+): Promise<User | undefined> {
+  let updated: User | undefined;
+  await mutate((d) => {
+    const u = d.users.find((user) => user.id === id);
+    if (u) {
+      if (updates.display_name !== undefined) u.display_name = updates.display_name.trim();
+      if (updates.role !== undefined) u.role = updates.role;
+      if (updates.password !== undefined) u.password = updates.password;
+      if (updates.bio !== undefined) u.bio = updates.bio.trim();
+      if (updates.area !== undefined) u.area = updates.area.trim();
+      if (updates.contact !== undefined) u.contact = updates.contact.trim();
+      updated = { ...u };
+    }
+  });
+  return updated;
 }
 
 export async function getCasePage(id: CasePageId): Promise<CasePage | undefined> {
@@ -465,6 +491,34 @@ export async function logReaction(params: {
       at: new Date().toISOString(),
     });
   });
+}
+
+export async function toggleReaction(params: {
+  need_card_id: NeedCardId;
+  user_id: UserId;
+  kind: "support" | "urgent" | "pray";
+}): Promise<{ supported: boolean }> {
+  let supported = false;
+  await mutate((d) => {
+    d.reactions = d.reactions || [];
+    const idx = d.reactions.findIndex(
+      (r) => r.need_card_id === params.need_card_id && r.user_id === params.user_id && r.kind === params.kind
+    );
+    if (idx >= 0) {
+      d.reactions.splice(idx, 1);
+      supported = false;
+    } else {
+      d.reactions.push({
+        id: `r-${cuid()}`,
+        need_card_id: params.need_card_id,
+        user_id: params.user_id,
+        kind: params.kind,
+        at: new Date().toISOString(),
+      });
+      supported = true;
+    }
+  });
+  return { supported };
 }
 
 export async function addDonationLog(params: {
