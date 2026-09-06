@@ -1,6 +1,7 @@
-import { getStore } from "@/lib/store";
+import { getStore, getAchievements, getFollowsForUser } from "@/lib/store";
 import { getCurrentUserId } from "@/lib/auth";
 import Feed from "@/components/feed";
+import type { Follow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -9,11 +10,18 @@ export default async function Home({
 }: {
   searchParams?: Promise<{ category?: string; area?: string; q?: string; sort?: string }>;
 }) {
-  const [store, viewerId, params] = await Promise.all([
+  const [store, viewerId, params, achievements] = await Promise.all([
     getStore(),
     getCurrentUserId(),
     searchParams ? searchParams : Promise.resolve({ category: "all", area: "all", q: "", sort: "new" }),
+    getAchievements(),
   ]);
+
+  const viewerFollows = viewerId ? await getFollowsForUser(viewerId) : [];
+  const followsByCase: Record<string, Follow> = {};
+  for (const f of viewerFollows) {
+    if (f.followee_type === "case") followsByCase[f.followee_id] = f;
+  }
 
   const shareCounts: Record<string, number> = {};
   for (const s of store.shares) {
@@ -58,6 +66,8 @@ export default async function Home({
       commentsByNeed={commentsByNeed}
       userVotes={userVotes}
       userReactions={userReactions}
+      achievements={achievements}
+      followsByCase={followsByCase}
       initialCategory={params.category || "all"}
       initialArea={params.area || "all"}
       initialSort={(params.sort as "hot" | "new" | "urgent" | "open") || "new"}

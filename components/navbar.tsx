@@ -3,14 +3,19 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
-import type { User } from "@/lib/types";
+import type { Notification, User } from "@/lib/types";
 import { getLetterBg } from "@/lib/utils";
+import NotificationsDropdown from "./notifications-dropdown";
 
 export default function NavBar({
   currentUser,
+  notifications = [],
+  viewerId = "",
 }: {
   currentUser?: User;
   users?: User[];
+  notifications?: Notification[];
+  viewerId?: string;
 }) {
   const router = useRouter();
   const [profileOpen, setProfileOpen] = useState(false);
@@ -80,6 +85,8 @@ export default function NavBar({
 
         {/* PROFILE (Right Aligned) */}
         <div className="reddit-nav-right">
+          {/* Notification Bell & Dropdown */}
+          <NotificationsDropdown viewerId={viewerId} initialNotifications={notifications} />
           {/* User Profile Pill & Dropdown */}
           <div className="reddit-profile-container" ref={dropdownRef}>
             <button

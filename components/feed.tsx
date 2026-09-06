@@ -2,9 +2,11 @@
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import type { AnchorPoint, CasePage, Comment, NeedCard as NeedCardType, Pledge, User } from "@/lib/types";
+import type { Achievement, AnchorPoint, CasePage, Comment, Follow, NeedCard as NeedCardType, Pledge, User } from "@/lib/types";
 import { AREAS, CATEGORIES } from "@/lib/categories";
+import { timeAgo } from "@/lib/utils";
 import NeedCardItem from "./need-card";
+import AreaMap from "./area-map";
 
 type SortMode = "hot" | "new" | "urgent" | "open";
 
@@ -20,6 +22,8 @@ export default function Feed({
   commentsByNeed,
   userVotes,
   userReactions = {},
+  achievements = [],
+  followsByCase = {},
   initialCategory = "all",
   initialArea = "all",
   initialSort = "new",
@@ -36,6 +40,8 @@ export default function Feed({
   commentsByNeed: Record<string, Comment[]>;
   userVotes: Record<string, "up" | "down">;
   userReactions?: Record<string, boolean>;
+  achievements?: Achievement[];
+  followsByCase?: Record<string, Follow>;
   initialCategory?: string;
   initialArea?: string;
   initialSort?: SortMode;
@@ -44,6 +50,7 @@ export default function Feed({
   const [cat, setCat] = useState<string>(initialCategory);
   const [area, setArea] = useState<string>(initialArea);
   const [sort, setSort] = useState<SortMode>(initialSort);
+  const [showAchievements, setShowAchievements] = useState(false);
 
   const [prevProps, setPrevProps] = useState({
     category: initialCategory,
@@ -113,6 +120,27 @@ export default function Feed({
     (n) => n.status === "open" || n.status === "partially_fulfilled"
   ).length;
 
+  const areaMapPoints = useMemo(() => {
+    const active = needs.filter(
+      (n) =>
+        (cat === "all" || n.ai_tags.category === cat) &&
+        (n.status === "open" || n.status === "partially_fulfilled") &&
+        (area === "all" || n.area.toLowerCase() === area.toLowerCase())
+    );
+    const byArea = new Map<string, { id: string; caption: string; status: string }[]>();
+    active.forEach((n) => {
+      const list = byArea.get(n.area) ?? [];
+      list.push({ id: n.id, caption: n.caption, status: n.status });
+      byArea.set(n.area, list);
+    });
+    const names = Array.from(byArea.keys()).sort();
+    const suggestedAreas = names.length > 0 ? names : AREAS.map((a) => a.toLowerCase());
+    return suggestedAreas.map((name) => ({
+      name,
+      needs: byArea.get(name) ?? [],
+    }));
+  }, [needs, cat, area]);
+
   const feedMainRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -136,9 +164,9 @@ export default function Feed({
               <button
                 type="button"
                 role="tab"
-                aria-selected={sort === "new"}
-                className={`feed-hub-tab ${sort === "new" ? "active" : ""}`}
-                onClick={() => setSort("new")}
+                aria-selected={sort === "new" && !showAchievements}
+                className={`feed-hub-tab ${sort === "new" && !showAchievements ? "active" : ""}`}
+                onClick={() => { setSort("new"); setShowAchievements(false); }}
               >
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
@@ -149,9 +177,9 @@ export default function Feed({
               <button
                 type="button"
                 role="tab"
-                aria-selected={sort === "hot"}
-                className={`feed-hub-tab ${sort === "hot" ? "active" : ""}`}
-                onClick={() => setSort("hot")}
+                aria-selected={sort === "hot" && !showAchievements}
+                className={`feed-hub-tab ${sort === "hot" && !showAchievements ? "active" : ""}`}
+                onClick={() => { setSort("hot"); setShowAchievements(false); }}
               >
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
                   <path d="M12 23c4.97 0 9-4.03 9-9 0-4.02-2.61-7.05-5.18-9.42-.48-.45-1.25-.09-1.22.56.1 2.21-.86 3.86-2.6 4.86-.34.2-.78-.05-.75-.44.22-3.14-1.26-6.07-3.25-8.56-.4-.5-1.2-.2-1.21.45-.08 3.9-2.3 6.64-3.79 8.55C4.24 15.15 3 16.96 3 19c0 2.21.89 4.21 2.34 5.66C6.84 25.11 8.84 26 11 26h1c0-1-.3-2-.3-3zm-1 0c-2.76 0-5-2.24-5-5 0-1.63 1.05-3.08 2.37-4.63 1.3-1.52 2.63-3.64 2.63-6.37 1.13 1.48 2.07 3.32 2 5.5-.04.9.46 1.74 1.3 2.06 1.8.69 2.7 2.1 2.7 3.44 0 2.76-2.24 5-5 5z" />
@@ -161,24 +189,43 @@ export default function Feed({
               <button
                 type="button"
                 role="tab"
-                aria-selected={sort === "urgent"}
-                className={`feed-hub-tab ${sort === "urgent" ? "active" : ""}`}
-                onClick={() => setSort("urgent")}
+                aria-selected={sort === "urgent" && !showAchievements}
+                className={`feed-hub-tab ${sort === "urgent" && !showAchievements ? "active" : ""}`}
+                onClick={() => { setSort("urgent"); setShowAchievements(false); }}
               >
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                 </svg>
                 <span>Top Urgent</span>
               </button>
+              {/* Achievements sub-tab: good news & success stories */}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={showAchievements}
+                className={`feed-hub-tab achievements-tab ${showAchievements ? "active" : ""}`}
+                onClick={() => setShowAchievements(true)}
+              >
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="8" r="6" />
+                  <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
+                </svg>
+                <span>Achievements</span>
+              </button>
             </div>
 
             <div className="feed-hub-stats-badge">
               <span className="live-pulse-dot" />
-              <span><strong>{sorted.length}</strong> active • <strong>{openCount}</strong> open</span>
+              {showAchievements ? (
+                <span><strong>{achievements.length}</strong> success {achievements.length === 1 ? "story" : "stories"}</span>
+              ) : (
+                <span><strong>{sorted.length}</strong> active • <strong>{openCount}</strong> open</span>
+              )}
             </div>
           </div>
 
           {/* Section: Causes / Categories */}
+          {!showAchievements && (<>
           <div className="feed-hub-filter-group">
             <span className="feed-hub-group-label">
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
@@ -239,7 +286,7 @@ export default function Feed({
           </div>
 
           {/* Filter Status & Reset Strip (Convenience Bar) */}
-          {(cat !== "all" || area !== "all") && (
+          {(cat !== "all" || area !== "all") && !showAchievements && (
             <div className="feed-hub-active-banner">
               <span className="feed-hub-banner-text">
                 Active filters:{" "}
@@ -262,10 +309,56 @@ export default function Feed({
               </button>
             </div>
           )}
+          </>)}
         </div>
 
         {/* Post Stream */}
-        {sorted.length === 0 ? (
+        {showAchievements ? (
+          achievements.length === 0 ? (
+            <div className="empty">
+              No success stories yet. When a need is fulfilled on a case you follow, the good news will show up here.
+            </div>
+          ) : (
+            <div className="achievements-feed">
+              <div className="achievements-intro">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="8" r="6" />
+                  <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
+                </svg>
+                <span>
+                  Great news — neighbors helping neighbors. Every story below is a confirmed, fulfilled need on a case page.
+                </span>
+              </div>
+              {achievements.map((a) => {
+                const casePage = caseById.get(a.case_page_id);
+                return (
+                  <article className="achievement-card" key={a.id}>
+                    <div className="achievement-card-head">
+                      <span className="achievement-badge">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                          <path d="M12 2l2.4 2.4h3.2v3.2L20 10l-2.4 2.4v3.2h-3.2L12 18l-2.4-2.4H6.4v-3.2L4 10l2.4-2.4V4.4h3.2L12 2z" />
+                        </svg>
+                      </span>
+                      <div className="achievement-card-title-wrap">
+                        <h3 className="achievement-card-title">{a.title}</h3>
+                        {casePage && (
+                          <Link href={`/cases/${casePage.id}`} className="achievement-case-link">
+                            View {casePage.alias}&apos;s case
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                    <p className="achievement-card-text">{a.text}</p>
+                    <div className="achievement-card-foot">
+                      <span className="achievement-by">By {a.by_name}</span>
+                      <span className="achievement-time">{timeAgo(a.created_at)}</span>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )
+        ) : sorted.length === 0 ? (
           <div className="empty">
             No needs found matching the current filters. Check other categories or post a need!
           </div>
@@ -285,6 +378,7 @@ export default function Feed({
               isSupported={!!userReactions[need.id]}
               users={users}
               comments={commentsByNeed[need.id] ?? []}
+              follow={need.owner_type === "case_page" ? followsByCase[need.owner_id] : undefined}
             />
           ))
         )}
@@ -292,6 +386,40 @@ export default function Feed({
 
       {/* Right Rail Info Widgets */}
       <aside className="reddit-feed-right-rail" aria-label="Community Information">
+        {/* Widget: Local Area Explorer */}
+        <div className="reddit-widget">
+          <div className="reddit-widget-body">
+            <div className="reddit-widget-title">
+              <span>Local Area Explorer</span>
+              <span style={{ fontSize: 11, color: "var(--reddit-green)", textTransform: "uppercase" }}>
+                {area === "all" ? "All areas" : area}
+              </span>
+            </div>
+            <p className="reddit-widget-desc">
+              Click a marker to see what&apos;s needed in that local area. Suggested for you below.
+            </p>
+            {areaMapPoints.length > 1 && (
+              <div className="local-area-suggests">
+                {areaMapPoints.slice(0, 6).map((ap) => (
+                  <button
+                    key={ap.name}
+                    type="button"
+                    className={`chip local-area-chip ${area === ap.name ? "active" : ""}`}
+                    onClick={() => setArea(area === ap.name ? "all" : ap.name)}
+                  >
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                      <circle cx="12" cy="10" r="3" />
+                    </svg>
+                    {ap.name.charAt(0).toUpperCase() + ap.name.slice(1)}
+                  </button>
+                ))}
+              </div>
+            )}
+            <AreaMap areas={areaMapPoints} />
+          </div>
+        </div>
+
         {/* Widget: Platform Rules */}
         <div className="reddit-widget">
           <div className="reddit-widget-body">

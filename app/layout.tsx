@@ -4,8 +4,8 @@ import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import NavBar from "@/components/navbar";
 import Sidebar from "@/components/sidebar";
-import { getCurrentUser } from "@/lib/auth";
-import { getStore } from "@/lib/store";
+import { getCurrentUser, getCurrentUserId } from "@/lib/auth";
+import { getStore, getNotificationsForUser } from "@/lib/store";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -18,13 +18,14 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [user, store] = await Promise.all([getCurrentUser(), getStore()]);
+  const [user, store, viewerId] = await Promise.all([getCurrentUser(), getStore(), getCurrentUserId()]);
+  const notifications = await getNotificationsForUser(viewerId);
 
   return (
     <html lang="en" className={outfit.variable}>
       <body>
         <div className="reddit-shell">
-          <NavBar currentUser={user} users={store.users} />
+          <NavBar currentUser={user} users={store.users} notifications={notifications} viewerId={viewerId} />
           <div className="reddit-layout-body">
             <Sidebar cases={store.case_pages} />
             <div className="reddit-page-wrapper">

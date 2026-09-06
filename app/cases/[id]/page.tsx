@@ -3,6 +3,7 @@ import {
   getCasePage,
   getStore,
   getTimeline,
+  getFollowForUser,
 } from "@/lib/store";
 import { DEMO_STEWARD_ID } from "@/lib/demo";
 import TimelineComposer from "@/components/case-update-form";
@@ -14,6 +15,8 @@ import { getCurrentUserId } from "@/lib/auth";
 import QRCode from "@/components/qr-code";
 import NeedCardItem from "@/components/need-card";
 import CaseDonorsDropdown from "@/components/case-donors-dropdown";
+import FollowButton from "@/components/follow-button";
+import CaseHelpModal from "@/components/case-help-modal";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +40,7 @@ export default async function CasePageView({
     getCurrentUserId(),
   ]);
   if (!page) notFound();
+  const viewerFollow = await getFollowForUser(viewerId, "case", id);
 
   const stewards = page.stewards
     .map((sid) => store.users.find((u) => u.id === sid))
@@ -102,12 +106,24 @@ export default async function CasePageView({
 
   const caseMessages = store.case_messages.filter(m => m.case_page_id === page.id);
 
+  const openNeedsCount = pageNeeds.filter((n) => n.status === "open" || n.status === "partially_fulfilled").length;
+
   const firstLetter = page.alias.trim().slice(0, 1).toUpperCase() || "C";
   const avatarBg = getLetterBg(firstLetter);
   const cleanBio = page.intro_text.replace(/A verbal consent clip was recorded before this page opened\.?/gi, "").trim();
 
   return (
     <div style={{ maxWidth: 1080, margin: "0 auto" }}>
+      {/* Pop-up help message shown when the case opens */}
+      <CaseHelpModal
+        caseId={page.id}
+        caseAlias={page.alias}
+        area={page.broad_area}
+        introText={cleanBio}
+        needsCount={pageNeeds.length}
+        openNeedsCount={openNeedsCount}
+      />
+
       {/* Beneficiary Profile Header Card with Clumped QR & Fundraiser Section */}
       <div className="reddit-case-header-card">
         <div className="reddit-case-header-top">
@@ -187,6 +203,15 @@ export default async function CasePageView({
               {s!.display_name} {s!.honor_badge ? `(Honor x${s!.honor_badge})` : ""}
             </span>
           ))}
+          <span className="faint" style={{ flex: 1 }} />
+          <FollowButton
+            followeeType="case"
+            followeeId={page.id}
+            viewerId={viewerId}
+            initialFollowed={!!viewerFollow}
+            initialWantUpdates={viewerFollow?.want_updates ?? true}
+            label={viewerFollow ? "Following" : "Follow this case"}
+          />
         </div>
       </div>
 
@@ -195,7 +220,7 @@ export default async function CasePageView({
         {/* Left Main Stream */}
         <div className="reddit-feed-main">
           {/* Linked Needs on this Case */}
-          <div>
+          <div id="case-open-needs">
             <div className="section-title">
               Active Needs for {page.alias} ({pageNeeds.length})
             </div>

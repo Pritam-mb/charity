@@ -3,13 +3,18 @@ import path from "node:path";
 import { buildSeed } from "./seed";
 import type {
   AITags,
+  Achievement,
   AnchorPointId,
   CasePage,
   CasePageId,
   Comment,
   ConfirmationRecord,
+  Follow,
+  FolloweeType,
   NeedCard,
   NeedCardId,
+  Notification,
+  NotificationKind,
   Pledge,
   PledgeId,
   StoreData,
@@ -52,6 +57,9 @@ function normalizeStore(data: StoreData): StoreData {
   data.comments ??= [];
   data.votes ??= [];
   data.volunteers ??= [];
+  data.follows ??= [];
+  data.notifications ??= [];
+  data.achievements ??= buildSeed().achievements;
   for (const user of data.users) {
     user.role ??= user.id.includes("steward") ? "steward" : "citizen";
     user.honor_badge ??= user.badge;
@@ -292,6 +300,30 @@ export async function addCaseUpdate(params: {
     d.timeline.push(entry);
     const c = d.case_pages.find((x) => x.id === params.case_page_id);
     if (c) c.last_update_at = entry.created_at;
+
+    // Notify followers of this case (who opted into updates) and followers of
+    // the case's stewards / handling NGOs.
+    const stewardIds = c ? new Set(c.stewards) : new Set<string>();
+    d.follows
+      .filter((f) => f.want_updates)
+      .forEach((f) => {
+        const matchesCase =
+          f.followee_type === "case" && f.followee_id === params.case_page_id;
+        const matchesSteward =
+          f.followee_type === "user" && stewardIds.has(f.followee_id);
+        if (matchesCase || matchesSteward) {
+          d.notifications.push({
+            id: `nt-${cuid()}`,
+            user_id: f.user_id,
+            kind: "case_update",
+            target_id: params.case_page_id,
+            case_page_id: params.case_page_id,
+            text: `New update${c ? ` on ${c.alias}'s case` : ""}: ${params.text}`,
+            read: false,
+            created_at: entry.created_at,
+          });
+        }
+      });
   });
   return entry;
 }
@@ -423,6 +455,20 @@ export async function confirmPledge(params: {
       giver.rank_points += 1;
     }
 
+    const need = d.needs.find((n) => n.id === p.need_card_id);
+
+    // Notify the giver that their help was confirmed.
+    d.notifications.push({
+      id: `nt-${cuid()}`,
+      user_id: p.giver_id,
+      kind: "help_confirmed",
+      target_id: p.need_card_id,
+      case_page_id: need?.owner_type === "case_page" ? (need.owner_id as CasePageId) : undefined,
+      text: `Your pledge (${p.portion}) was confirmed by a steward. Thank you — your help reached someone.`,
+      read: false,
+      created_at: now,
+    });
+
     // Collusion guard (problems.md #4): flag when the same steward-giver pair
     // confirms many times within an hour.
     const HOUR_MS = 3600000;
@@ -434,12 +480,42 @@ export async function confirmPledge(params: {
     ).length;
     record.mismatch_flag = recentSamePair >= 5;
 
-    const need = d.needs.find((n) => n.id === p.need_card_id);
     if (need) {
       const confirmed = d.pledges.filter(
         (x) => x.need_card_id === need.id && x.status === "confirmed"
       ).length;
       if (confirmed >= 1) need.status = "fulfilled";
+    }
+
+    // Good news: when a case need becomes fulfilled, celebrate an achievement
+    // and notify followers who opted into updates.
+    if (need && need.status === "fulfilled" && need.owner_type === "case_page") {
+      const page = d.case_pages.find((cp) => cp.id === need.owner_id);
+      if (page) {
+        d.achievements.push({
+          id: `a-${cuid()}`,
+          case_page_id: page.id,
+          title: `${page.alias} — a need was fulfilled`,
+          text: `Confirmed: a pledge for "${need.caption}" was received by a steward. This support made a real difference for ${page.alias}.`,
+          by_name: giver?.display_name ?? "A neighbor",
+          highlight: page.alias,
+          created_at: now,
+        });
+        d.follows
+          .filter((f) => f.want_updates && f.followee_type === "case" && f.followee_id === page.id)
+          .forEach((f) => {
+            d.notifications.push({
+              id: `nt-${cuid()}`,
+              user_id: f.user_id,
+              kind: "good_news",
+              target_id: page.id,
+              case_page_id: page.id,
+              text: `Great news on ${page.alias}'s case: a need was fulfilled and the support was confirmed.`,
+              read: false,
+              created_at: now,
+            });
+          });
+      }
     }
 
     if (need && need.owner_type === "case_page") {
@@ -654,4 +730,129 @@ export async function registerVolunteer(params: {
     d.volunteers.push(vol);
   });
   return vol;
+}
+
+// ---------- follows ----------
+
+export async function getFollowsForUser(user_id: UserId): Promise<Follow[]> {
+  const d = await load();
+  return d.follows.filter((f) => f.user_id === user_id);
+}
+
+export async function getFollowForUser(
+  user_id: UserId,
+  followee_type: FolloweeType,
+  followee_id: string
+): Promise<Follow | undefined> {
+  const d = await load();
+  return d.follows.find(
+    (f) =>
+      f.user_id === user_id &&
+      f.followee_type === followee_type &&
+      f.followee_id === followee_id
+  );
+}
+
+export async function toggleFollow(params: {
+  user_id: UserId;
+  followee_type: FolloweeType;
+  followee_id: string;
+  want_updates: boolean;
+}): Promise<{ followed: boolean; follow: Follow | null }> {
+  let followed = false;
+  let created: Follow | null = null;
+  await mutate((d) => {
+    d.follows ??= [];
+    const idx = d.follows.findIndex(
+      (f) =>
+        f.user_id === params.user_id &&
+        f.followee_type === params.followee_type &&
+        f.followee_id === params.followee_id
+    );
+    if (idx >= 0) {
+      d.follows.splice(idx, 1);
+      followed = false;
+    } else {
+      created = {
+        id: `f-${cuid()}`,
+        user_id: params.user_id,
+        followee_type: params.followee_type,
+        followee_id: params.followee_id,
+        want_updates: params.want_updates,
+        created_at: new Date().toISOString(),
+      };
+      d.follows.push(created);
+      followed = true;
+    }
+  });
+  return { followed, follow: created };
+}
+
+export async function setFollowUpdates(params: {
+  user_id: UserId;
+  followee_type: FolloweeType;
+  followee_id: string;
+  want_updates: boolean;
+}): Promise<void> {
+  await mutate((d) => {
+    const f = d.follows.find(
+      (x) =>
+        x.user_id === params.user_id &&
+        x.followee_type === params.followee_type &&
+        x.followee_id === params.followee_id
+    );
+    if (f) f.want_updates = params.want_updates;
+  });
+}
+
+// ---------- notifications ----------
+
+export async function getNotificationsForUser(user_id: UserId): Promise<Notification[]> {
+  const d = await load();
+  return d.notifications
+    .filter((n) => n.user_id === user_id)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+export async function getUnreadNotificationCount(user_id: UserId): Promise<number> {
+  const d = await load();
+  return d.notifications.filter((n) => n.user_id === user_id && !n.read).length;
+}
+
+export async function markNotificationsRead(user_id: UserId): Promise<void> {
+  await mutate((d) => {
+    d.notifications.forEach((n) => {
+      if (n.user_id === user_id) n.read = true;
+    });
+  });
+}
+
+export async function pushNotification(params: {
+  user_id: UserId;
+  kind: NotificationKind;
+  target_id: string;
+  case_page_id?: CasePageId;
+  text: string;
+}): Promise<Notification> {
+  const notification: Notification = {
+    id: `nt-${cuid()}`,
+    user_id: params.user_id,
+    kind: params.kind,
+    target_id: params.target_id,
+    case_page_id: params.case_page_id,
+    text: params.text,
+    read: false,
+    created_at: new Date().toISOString(),
+  };
+  await mutate((d) => {
+    d.notifications.push(notification);
+  });
+  return notification;
+}
+
+// ---------- achievements ----------
+
+export async function getAchievements(): Promise<Achievement[]> {
+  const d = await load();
+  return [...d.achievements].sort((a, b) => b.created_at.localeCompare(a.created_at));
 }

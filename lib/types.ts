@@ -201,6 +201,45 @@ export interface CaseMessage {
   created_at: string;
 }
 
+export type FolloweeType = "case" | "user";
+
+export interface Follow {
+  id: string;
+  user_id: UserId;
+  followee_type: FolloweeType;
+  followee_id: string;
+  want_updates: boolean;
+  created_at: string;
+}
+
+export type NotificationKind =
+  | "case_update"
+  | "help_confirmed"
+  | "good_news"
+  | "new_need"
+  | "system";
+
+export interface Notification {
+  id: string;
+  user_id: UserId;
+  kind: NotificationKind;
+  target_id: string;
+  case_page_id?: CasePageId;
+  text: string;
+  read: boolean;
+  created_at: string;
+}
+
+export interface Achievement {
+  id: string;
+  case_page_id: CasePageId;
+  title: string;
+  text: string;
+  by_name: string;
+  highlight?: string;
+  created_at: string;
+}
+
 export interface StoreData {
   users: User[];
   case_pages: CasePage[];
@@ -217,4 +256,7 @@ export interface StoreData {
   comments: Comment[];
   votes: Vote[];
   volunteers: Volunteer[];
+  follows: Follow[];
+  notifications: Notification[];
+  achievements: Achievement[];
 }

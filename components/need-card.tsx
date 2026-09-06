@@ -2,12 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { AnchorPoint, CasePage, Comment, NeedCard, Pledge, User } from "@/lib/types";
+import type { AnchorPoint, CasePage, Comment, Follow, NeedCard, Pledge, User } from "@/lib/types";
 import { categoryInfo, formatCategory, formatUrgency, urgencyInfo } from "@/lib/categories";
 import { timeAgo } from "@/lib/utils";
 import Poster from "./poster";
 import Link from "next/link";
 import NeedCardComments from "./need-card-comments";
+import FollowButton from "./follow-button";
 
 const STATUS_COLOR: Record<string, string> = {
   open: "var(--reddit-green)",
@@ -42,6 +43,7 @@ export default function NeedCardItem({
   users,
   comments,
   isSupported: initialIsSupported = false,
+  follow,
 }: {
   need: NeedCard;
   pledges: Pledge[];
@@ -56,6 +58,7 @@ export default function NeedCardItem({
   comments: Comment[];
   userVote?: "up" | "down";
   isSupported?: boolean;
+  follow?: Follow;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -258,16 +261,32 @@ export default function NeedCardItem({
             <div className="byline-content">
               <div className="byline-primary-row">
                 <span className="byline-prefix">Posted by</span>
-                <span className="byline-poster-name">{posterDisplayName}</span>
+                {casePage ? (
+                  <Link href={`/cases/${casePage.id}`} className="byline-poster-name" title={`View ${casePage.alias}'s full history`}>
+                    {posterDisplayName}
+                  </Link>
+                ) : (
+                  <span className="byline-poster-name">{posterDisplayName}</span>
+                )}
                 <span className="byline-connector">on behalf of</span>
                 {casePage ? (
-                  <Link href={`/cases/${casePage.id}`} className="byline-beneficiary-tag">
+                  <Link href={`/cases/${casePage.id}`} className="byline-beneficiary-tag" title={`View ${casePage.alias}'s full history`}>
                     {beneficiaryDisplayName}
                   </Link>
                 ) : (
                   <span className="byline-beneficiary-tag direct">
                     {beneficiaryDisplayName}
                   </span>
+                )}
+                {casePage && (
+                  <FollowButton
+                    followeeType="case"
+                    followeeId={casePage.id}
+                    viewerId={viewerId}
+                    initialFollowed={!!follow}
+                    initialWantUpdates={follow?.want_updates ?? true}
+                    compact
+                  />
                 )}
               </div>
               <div className="byline-secondary-row">
@@ -310,7 +329,9 @@ export default function NeedCardItem({
 
         {/* Post Body */}
         <div className="reddit-post-body">
-          <h2 className="reddit-post-title">{need.caption}</h2>
+          <Link href={`/needs/${need.id}`} className="reddit-post-title-link">
+            <h2 className="reddit-post-title">{need.caption}</h2>
+          </Link>
 
           <div className="reddit-post-meta-details">
             <span className="reddit-meta-pill">

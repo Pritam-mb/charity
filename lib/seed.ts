@@ -383,5 +383,42 @@ export function buildSeed(): StoreData {
     comments: [],
     votes: [],
     volunteers: [],
+    follows: [
+      { id: "f-1", user_id: "u-you", followee_type: "case", followee_id: "c-arjun", want_updates: true, created_at: iso(4) },
+      { id: "f-2", user_id: "u-demo-giver-1", followee_type: "user", followee_id: "u-steward-meera", want_updates: true, created_at: iso(5) },
+    ],
+    notifications: [
+      { id: "nt-1", user_id: "u-you", kind: "good_news", target_id: "c-arjun", case_page_id: "c-arjun", text: "Arjun's blood-pressure monitor request was fulfilled and the monitor is in use.", read: false, created_at: iso(1, 12, 5) },
+      { id: "nt-2", user_id: "u-you", kind: "case_update", target_id: "c-arjun", case_page_id: "c-arjun", text: "New update on Arjun's case: medicine and blood work costs were covered by a neighbor.", read: false, created_at: iso(0, 9, 40) },
+    ],
+    achievements: [
+      {
+        id: "a-1",
+        case_page_id: "c-arjun",
+        title: "A warm winter for Arjun",
+        text: "After neighbors delivered a winter blanket and a hygiene pack, Arjun's health stabilized. A follow-up found him sleeping safer and checking his vitals regularly now that a blood-pressure monitor is in use.",
+        by_name: "Bansdroni Helping Circle",
+        highlight: "Arjun",
+        created_at: iso(30),
+      },
+      {
+        id: "a-2",
+        case_page_id: "c-maya",
+        title: "Maya's chai stall plans are back",
+        text: "Monthly grocery packs and diabetes test strips kept Maya nourished while she recovered. Her niece reports Maya is now planning to restart a small tea stall with community support.",
+        by_name: "Meera Community Aid",
+        highlight: "Maya",
+        created_at: iso(15),
+      },
+      {
+        id: "a-3",
+        case_page_id: "c-rahul",
+        title: "Back to school for Rahul's kids",
+        text: "Stationery, uniforms and a school fee waiver meant both children returned to class two weeks after the fire. The school confirmed they are attending regularly.",
+        by_name: "Joy local volunteer team",
+        highlight: "Rahul & kids",
+        created_at: iso(6),
+      },
+    ],
   };
 }

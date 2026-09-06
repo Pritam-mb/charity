@@ -192,6 +192,35 @@ export default function Sidebar({
               </Link>
 
               <Link
+                href="/ngos"
+                className={`sidebar-nav-row ${pathname === "/ngos" ? "active" : ""}`}
+                title="NGOs & Helping Organizations"
+              >
+                <span className="sidebar-nav-icon">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+                    <path d="M19 11a7 7 0 0 1-14 0" />
+                    <line x1="12" y1="18" x2="12" y2="22" />
+                  </svg>
+                </span>
+                <span className="sidebar-nav-text">NGOs &amp; Orgs</span>
+              </Link>
+
+              <Link
+                href="/following"
+                className={`sidebar-nav-row ${pathname === "/following" ? "active" : ""}`}
+                title="Your following list"
+              >
+                <span className="sidebar-nav-icon">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                  </svg>
+                </span>
+                <span className="sidebar-nav-text">Following</span>
+              </Link>
+
+              <Link
                 href="/dashboard"
                 className={`sidebar-nav-row ${pathname === "/dashboard" ? "active" : ""}`}
                 title="Snowflake HQ Data"
