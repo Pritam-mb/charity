@@ -1,12 +1,19 @@
 import { getStore } from "@/lib/store";
 import { getCurrentUserId } from "@/lib/auth";
 import Feed from "@/components/feed";
-import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
-  const [store, viewerId] = await Promise.all([getStore(), getCurrentUserId()]);
+export default async function Home({
+  searchParams,
+}: {
+  searchParams?: Promise<{ category?: string; area?: string; q?: string; sort?: string }>;
+}) {
+  const [store, viewerId, params] = await Promise.all([
+    getStore(),
+    getCurrentUserId(),
+    searchParams ? searchParams : Promise.resolve({ category: "all", area: "all", q: "", sort: "new" }),
+  ]);
 
   const shareCounts: Record<string, number> = {};
   for (const s of store.shares) {
@@ -30,34 +37,31 @@ export default async function Home() {
     if (v.user_id === viewerId) userVotes[v.need_card_id] = v.kind;
   }
 
-  return (
-    <div>
-      <div className="row-between" style={{ marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.5px" }}>
-            Community Feed 🌏
-          </h1>
-          <p className="muted" style={{ fontSize: 14, marginTop: 4 }}>
-            Real needs from real people. Pledge help, donate, raise your hand.
-          </p>
-        </div>
-        <Link href="/upload" className="btn btn-primary">
-          + Post a need
-        </Link>
-      </div>
+  // Build userReactions by need
+  const userReactions: Record<string, boolean> = {};
+  for (const r of store.reactions) {
+    if (r.user_id === viewerId && r.kind === "support") {
+      userReactions[r.need_card_id] = true;
+    }
+  }
 
-      <Feed
-        needs={store.needs}
-        pledges={store.pledges}
-        cases={store.case_pages}
-        anchorPoints={store.anchor_points}
-        viewerId={viewerId}
-        shareCounts={shareCounts}
-        reactionCounts={reactionCounts}
-        users={store.users}
-        commentsByNeed={commentsByNeed}
-        userVotes={userVotes}
-      />
-    </div>
+  return (
+    <Feed
+      needs={store.needs}
+      pledges={store.pledges}
+      cases={store.case_pages}
+      anchorPoints={store.anchor_points}
+      viewerId={viewerId}
+      shareCounts={shareCounts}
+      reactionCounts={reactionCounts}
+      users={store.users}
+      commentsByNeed={commentsByNeed}
+      userVotes={userVotes}
+      userReactions={userReactions}
+      initialCategory={params.category || "all"}
+      initialArea={params.area || "all"}
+      initialSort={(params.sort as "hot" | "new" | "urgent" | "open") || "new"}
+      searchQuery={params.q || ""}
+    />
   );
 }

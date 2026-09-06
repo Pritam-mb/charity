@@ -10,20 +10,77 @@ function hash(key: string): number {
   return h >>> 0;
 }
 
+const MOCK_IMAGE_MAP: Record<string, string> = {
+  "n-rah-clothing-1": "/images/needs/school_uniforms.jpg",
+  "n-arj-food-1": "/images/needs/dry_ration_pack.jpg",
+  "n-arj-med-1": "/images/needs/bp_monitor.jpg",
+  "n-may-mobility-1": "/images/needs/folding_walker.jpg",
+  "n-may-food-1": "/images/needs/grocery_bag.jpg",
+  "n-rah-shelter-1": "/images/needs/tarpaulin_blankets.jpg",
+  "n-rah-edu-1": "/images/needs/school_stationery.jpg",
+  "n-self-elderly-cane": "/images/needs/walking_cane.jpg",
+  "n-behala-infant-1": "/images/needs/infant_care_kit.jpg",
+  "n-naren-water-1": "/images/needs/water_filter.jpg",
+  "n-jad-textbooks-1": "/images/needs/school_textbooks.jpg",
+  "n-gar-sweaters-1": "/images/needs/warm_sweaters.jpg",
+  "n-tolly-cushion-1": "/images/needs/wheelchair_cushion.jpg",
+};
+
 export default function Poster({
   mediaKey,
   category,
   caption,
-  height = "16 / 7",
+  height = "16 / 8",
+  imageUrl,
   tagline,
 }: {
   mediaKey: string;
   category: Category;
   caption?: string;
   height?: string;
+  imageUrl?: string;
   tagline?: string;
 }) {
   const cat = categoryInfo(category);
+  const resolvedSrc = imageUrl || MOCK_IMAGE_MAP[mediaKey] || (mediaKey?.startsWith("/") || mediaKey?.startsWith("http") || mediaKey?.startsWith("data:image") ? mediaKey : null);
+
+  if (resolvedSrc) {
+    return (
+      <div
+        className="poster-image-container"
+        style={{
+          width: "100%",
+          aspectRatio: height,
+          overflow: "hidden",
+          borderRadius: 10,
+          background: "#080b0e",
+          position: "relative",
+        }}
+      >
+        <img
+          src={resolvedSrc}
+          alt={caption ?? "Need image"}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            display: "block",
+            transition: "transform 0.35s ease",
+          }}
+          loading="eager"
+        />
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "linear-gradient(180deg, rgba(0,0,0,0) 65%, rgba(0,0,0,0.5) 100%)",
+            pointerEvents: "none",
+          }}
+        />
+      </div>
+    );
+  }
+
   const h = hash(mediaKey || caption || category);
   const hue = parseInt(cat.color.slice(1), 16);
   const r1 = (hue >> 16) & 255;
@@ -35,18 +92,6 @@ export default function Poster({
   const circleX = 12 + (h % 76);
   const circleY = 14 + ((h >> 8) % 58);
   const lineTilt = ((h >> 16) % 160) - 80;
-
-  if (mediaKey && mediaKey.startsWith("data:image")) {
-    return (
-      <div style={{ width: "100%", aspectRatio: height, overflow: "hidden", borderRadius: 8, background: "#000" }}>
-        <img
-          src={mediaKey}
-          alt={caption ?? "Need image"}
-          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-        />
-      </div>
-    );
-  }
 
   return (
     <svg

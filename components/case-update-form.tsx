@@ -37,20 +37,50 @@ export default function TimelineComposer({
   };
 
   return (
-    <div className="card">
-      <div className="pledge-pool-title" style={{ marginBottom: 10 }}>
-        Post an update to the timeline (as steward)
+    <div className="steward-composer-box">
+      <div className="steward-subhead">
+        <span className="steward-subhead-title">Post Timeline Update</span>
+        <span className="steward-role-pill">Steward</span>
       </div>
-      <form onSubmit={submit} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-start" }}>
+      <form onSubmit={submit} className="steward-composer-form">
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
+          rows={3}
           placeholder="What changed for the beneficiary? (Spoken updates become text here in the full product.)"
-          style={{ flex: 1, minWidth: 260, background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: 8, padding: 10 }}
+          className="steward-textarea"
         />
-        <button className="btn btn-primary" disabled={busy || !text.trim()} type="submit">
-          Post →
-        </button>
+        <div className="steward-composer-actions">
+          <span className="steward-composer-hint">
+            Visible on public audit timeline
+          </span>
+          <button
+            className="steward-post-btn"
+            disabled={busy || !text.trim()}
+            type="submit"
+          >
+            {busy ? (
+              <span>Posting...</span>
+            ) : (
+              <>
+                <svg
+                  viewBox="0 0 24 24"
+                  width="13"
+                  height="13"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+                <span>Post</span>
+              </>
+            )}
+          </button>
+        </div>
       </form>
     </div>
   );

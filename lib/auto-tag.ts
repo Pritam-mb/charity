@@ -1,7 +1,7 @@
 import type { AITags, Category, Urgency } from "./types";
 
 /**
- * Local auto-tagging — a deterministic, keyword-driven stand-in for the
+ * Local auto-tagging - a deterministic, keyword-driven stand-in for the
  * Google AI multimodal tagging described in plan.md §4. It proposes
  * category / item-type / urgency from the caption, steward edits before
  * publishing (problems.md #10). Swappable for a real Gemini call later.
@@ -91,7 +91,7 @@ export function autoTag(text: string): TagProposal {
 
   const notes =
     bestScore === 0
-      ? "No strong category signals — review before publishing."
+      ? "No strong category signals - review before publishing."
       : `Matched "${matched[0]}" under ${bestCat}.`;
 
   return {

@@ -23,3 +23,39 @@ export function shortDate(iso: string): string {
     month: "short",
   });
 }
+
+export function getLetterBg(nameOrLetter: string): string {
+  if (!nameOrLetter) return "#ff4500";
+  const char = nameOrLetter.trim().charAt(0).toUpperCase();
+  const charCode = char.charCodeAt(0) || 65;
+  const letterPalette = [
+    "#e63946", // A
+    "#457b9d", // B
+    "#2a9d8f", // C
+    "#e76f51", // D
+    "#f4a261", // E
+    "#8338ec", // F
+    "#3a86ff", // G
+    "#06d6a0", // H
+    "#fb5607", // I
+    "#118ab2", // J
+    "#7209b7", // K
+    "#4361ee", // L
+    "#d90429", // M
+    "#00b4d8", // N
+    "#ff006e", // O
+    "#f77f00", // P
+    "#588157", // Q
+    "#38b000", // R
+    "#9d4edd", // S
+    "#3f37c9", // T
+    "#0077b6", // U
+    "#0096c7", // V
+    "#ef476f", // W
+    "#2b9348", // X
+    "#ff5400", // Y
+    "#70e000", // Z
+  ];
+  const idx = Math.abs(charCode - 65) % letterPalette.length;
+  return letterPalette[idx];
+}

@@ -42,3 +42,7 @@ next-env.d.ts
 
 # needreel local state
 /data/
+
+# local repo-analysis context
+/REPO_CONTEXT.md
+/info.md

@@ -5,20 +5,6 @@ import VolunteerForm from "@/components/volunteer-form";
 
 export const dynamic = "force-dynamic";
 
-const CAT_EMOJI: Record<string, string> = {
-  food: "🍱",
-  clothing: "👕",
-  medical: "🏥",
-  education: "📚",
-  shelter: "🏠",
-  hygiene: "🧼",
-  mobility: "♿",
-  time: "⏰",
-  service: "🔧",
-  teaching: "📖",
-  skills: "💡",
-};
-
 export default async function VolunteersPage() {
   const [store, viewerId] = await Promise.all([getStore(), getCurrentUserId()]);
 
@@ -33,7 +19,7 @@ export default async function VolunteersPage() {
     <div>
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>
-          Volunteer Register 🙌
+          Volunteer Register
         </h1>
         <p className="muted" style={{ fontSize: 15, maxWidth: 560 }}>
           Are you a retired teacher, a doctor with spare time, or someone who cooks extra? Register yourself here and let the community find you.
@@ -48,7 +34,6 @@ export default async function VolunteersPage() {
           {Object.entries(byCategory).map(([cat, vols]) => (
             <div key={cat} style={{ marginBottom: 28 }}>
               <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 22 }}>{CAT_EMOJI[cat] ?? "🤝"}</span>
                 {cat.charAt(0).toUpperCase() + cat.slice(1)}
                 <span className="chip" style={{ fontWeight: 600, fontSize: 12 }}>{vols.length}</span>
               </h3>
@@ -64,18 +49,18 @@ export default async function VolunteersPage() {
                         <div>
                           <div style={{ fontWeight: 800, fontSize: 15 }}>
                             {v.name}
-                            {user?.honor_badge ? <span className="badge-pill" style={{ marginLeft: 6 }}>🏆 x{user.honor_badge}</span> : null}
+                            {user?.honor_badge ? <span className="badge-pill" style={{ marginLeft: 6 }}>Honor x{user.honor_badge}</span> : null}
                           </div>
                           <div className="muted" style={{ fontSize: 12 }}>{timeAgo(v.created_at)}</div>
                         </div>
                       </div>
                       <p style={{ fontSize: 14, lineHeight: 1.5, marginBottom: 10 }}>{v.description}</p>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-                        <span className="chip area-chip">📍 {v.area}</span>
-                        <span className="chip">⏰ {v.availability}</span>
+                        <span className="chip area-chip">{v.area}</span>
+                        <span className="chip">{v.availability}</span>
                       </div>
                       <div className="muted" style={{ fontSize: 13 }}>
-                        📞 {v.contact}
+                        {v.contact}
                       </div>
                     </div>
                   );
@@ -86,7 +71,7 @@ export default async function VolunteersPage() {
         </div>
       ) : (
         <div className="empty" style={{ marginTop: 40 }}>
-          No volunteers registered yet. Be the first one! 🌟
+          No volunteers registered yet. Be the first one.
         </div>
       )}
     </div>

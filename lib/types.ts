@@ -32,6 +32,9 @@ export interface User {
   rank_points: number;
   password?: string;
   created_at: string;
+  bio?: string;
+  area?: string;
+  contact?: string;
 }
 
 export interface CasePage {
