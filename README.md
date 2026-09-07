@@ -1,4 +1,4 @@
-# NeedReel
+# NeedFeed
 
 Hyperlocal in-kind giving. Post a need, anyone can pledge a piece of it into an open pool,
 a steward confirms the handoff, and the giver earns a verifiable badge — no money, no tagging
